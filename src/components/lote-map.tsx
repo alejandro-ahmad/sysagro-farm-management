@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Lote } from '@/lib/sysagro-data';
-import { MapPin, Grid3X3, Map as MapIcon, Eye, Wheat, Droplets, Ruler, Pencil, Trash2, X, Check, Undo2, Plus } from 'lucide-react';
+import { MapPin, Grid3X3, Map as MapIcon, Eye, Wheat, Droplets, Ruler, Pencil, Trash2, X, Check, Undo2, Plus, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
@@ -84,7 +84,7 @@ export function LoteMap({ lotes, onSelectLote, onDeleteLote, onAddLote }: {
         color: loteColor, fillColor: loteColor, fillOpacity: 0.38, weight: 2.5,
       }).addTo(map);
 
-      polygon.bindTooltip(`<div style="font-family:inherit;padding:2px 4px"><strong>${lote.nombre}</strong><br/>${lote.superficie} ha · ${lote.cultivo_actual}<br/><span style="color:${loteColor};font-weight:600">● ${lote.estado}</span></div>`, {
+      polygon.bindTooltip(`<div style="font-family:inherit;padding:2px 4px"><strong>${lote.nombre}</strong><br/>${lote.superficie} ha · ${lote.cultivo_actual}<br/><span style="color:${loteColor};font-weight:600">● ${lote.estado}</span><br/><span style="color:#0ea5e9;font-size:11px">📡 Sensores subterráneos LoRaWAN</span></div>`, {
         sticky: true, className: 'lote-tooltip',
       });
 
@@ -353,11 +353,18 @@ export function LoteMap({ lotes, onSelectLote, onDeleteLote, onAddLote }: {
                 <p className="mt-3 text-xs text-muted-foreground line-clamp-2">{lote.observaciones}</p>
               )}
 
+              <div className="mt-3.5 flex items-center justify-between border-t border-border/60 pt-2.5 text-[11px]">
+                <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-600 dark:text-emerald-400">
+                  <Radio size={12} className="animate-pulse" /> Sensores subterráneos
+                </span>
+                <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">LoRaWAN</span>
+              </div>
+
               <button
                 onClick={() => { setSelected(lote.id); onSelectLote(lote); }}
                 className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-primary opacity-0 transition-opacity group-hover:opacity-100"
               >
-                <Eye size={13} /> Ver detalle
+                <Eye size={13} /> Ver detalle y sensores
               </button>
             </div>
           );

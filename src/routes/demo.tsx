@@ -2,12 +2,14 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { AlertTriangle, ArrowLeft, BarChart3, Bell, BookOpen, Edit3, Eye, History, LogOut, MapPin, Save, Sparkles, Lock, Boxes, ChevronRight, CircleDollarSign, CloudSun, Droplets, Gauge, Leaf, Menu, Plus, Search, Sprout, Tractor, Trash2, Wheat, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, BarChart3, Bell, BookOpen, Edit3, Eye, History, LogOut, MapPin, Save, Sparkles, Lock, Boxes, ChevronRight, CircleDollarSign, CloudSun, Droplets, Gauge, Leaf, Menu, Plus, Search, Sprout, Tractor, Trash2, Wheat, X, Radio } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { getSession, logout, readData, seedData, writeData, addHistory, type Session, type SysagroData, type HistoryEntry, type Lote } from '@/lib/sysagro-data';
 import { LoteMap, getLoteColorByEstado } from '@/components/lote-map';
+import { LoteSensoresTab } from '@/components/lote-sensores';
+import { IAChatbot } from '@/components/ia-chatbot';
 
 export const Route=createFileRoute('/demo')({head:()=>({meta:[{title:'Demo del sistema — Sysagro'},{name:'description',content:'Dashboard interactivo de gestión agropecuaria Sysagro.'},{property:'og:title',content:'Demo del sistema — Sysagro'},{property:'og:description',content:'Explorá la gestión integral de una operación agropecuaria.'},{property:'og:type',content:'website'},{name:'twitter:card',content:'summary_large_image'}]}),component:Demo});
 
@@ -48,6 +50,13 @@ function Demo() {
   const [side, setSide] = useState(false);
   const [modal, setModal] = useState(false);
   const [query, setQuery] = useState('');
+
+  const handleActivateDemoPremium = useCallback(() => {
+    if (session) {
+      setSession({ ...session, plan: 'premium' });
+      toast.success('Plan Premium activado temporalmente para esta sesión demo');
+    }
+  }, [session]);
   useEffect(() => { setData(readData()); setReady(true); }, []);
   useEffect(() => { if (ready) writeData(data); }, [data, ready]);
 
@@ -150,10 +159,25 @@ function Demo() {
             {mod === 'maquinas' && <Maquinas data={data} remove={id => remove('maquinas', id)} />}
             {mod === 'bodega' && <Bodega data={data} remove={id => remove('stock', id)} />}
             {mod === 'costos' && <Costos />}
-            {mod === 'ia' && <IA plan={session.plan} />}
+            {mod === 'ia' && <IA plan={session.plan} data={data} session={session} onActivateDemoPremium={handleActivateDemoPremium} />}
             {mod === 'cosechas' && <Cosechas data={data} removeC={id => remove('cosechas', id)} removeR={id => remove('riegos', id)} />}
           </div>
         </main>
+
+        {/* ─── Floating Asistente AgroIA Button ─── */}
+        {mod !== 'ia' && (
+          <button
+            onClick={() => setMod('ia')}
+            className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-xs font-bold text-primary-foreground shadow-2xl transition-all hover:scale-105 hover:bg-primary/95 active:scale-95"
+            title="Abrir Asistente AgroIA"
+          >
+            <Sparkles size={16} className="text-accent animate-pulse" />
+            <span>Asistente AgroIA</span>
+            {session.plan === 'premium' && (
+              <span className="size-2 rounded-full bg-emerald-400" />
+            )}
+          </button>
+        )}
 
         {/* ─── New Record Modal ─── */}
         <NewRecord open={modal} setOpen={setModal} mod={mod} data={data} setData={setData} userName={session.nombre} />
@@ -173,7 +197,7 @@ function DetailModal({ detail, setDetail, data, updateRecord, userName }: {
   updateRecord: (module: string, id: string, updates: Record<string, unknown>, user: string) => void;
   userName: string;
 }) {
-  const [tab, setTab] = useState<'info' | 'edit' | 'history'>('info');
+  const [tab, setTab] = useState<'info' | 'edit' | 'history' | 'sensores'>('info');
   const [editValues, setEditValues] = useState<Record<string, string>>({});
 
   // Reset tab when detail changes
@@ -208,18 +232,28 @@ function DetailModal({ detail, setDetail, data, updateRecord, userName }: {
 
   return (
     <Dialog open={!!detail} onOpenChange={o => !o && setDetail(null)}>
-      <DialogContent className='max-h-[85vh] overflow-y-auto sm:max-w-2xl'>
+      <DialogContent className={`max-h-[85vh] overflow-y-auto ${tab === 'sensores' ? 'sm:max-w-3xl' : 'sm:max-w-2xl'}`}>
         <DialogHeader>
           <DialogTitle className='flex items-center gap-3'>
             <span className='grid size-8 place-items-center rounded-md bg-primary text-primary-foreground text-xs font-bold'>{recordId.slice(0, 2)}</span>
-            Registro {recordId}
+            Registro {recordId} {detail.module === 'lotes' && detail.record['nombre'] ? `— ${String(detail.record['nombre'])}` : ''}
           </DialogTitle>
-          <DialogDescription>Información completa guardada en el sistema.</DialogDescription>
+          <DialogDescription>
+            {detail.module === 'lotes'
+              ? 'Información del lote, telemetría de sensores subterráneos y registro agronómico.'
+              : 'Información completa guardada en el sistema.'}
+          </DialogDescription>
         </DialogHeader>
 
         {/* Tabs */}
-        <div className='flex gap-1 rounded-lg bg-muted/60 p-1'>
+        <div className='flex flex-wrap gap-1 rounded-lg bg-muted/60 p-1'>
           <button className={tabClass('info')} onClick={() => setTab('info')}><Eye size={15} /> Detalle</button>
+          {detail.module === 'lotes' && (
+            <button className={tabClass('sensores')} onClick={() => setTab('sensores')}>
+              <Radio size={15} className="text-emerald-500" /> Sensores
+              <span className="ml-1 rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Subterráneos</span>
+            </button>
+          )}
           <button className={tabClass('edit')} onClick={() => setTab('edit')}><Edit3 size={15} /> Editar</button>
           <button className={tabClass('history')} onClick={() => setTab('history')}>
             <History size={15} /> Historial
@@ -329,6 +363,15 @@ function DetailModal({ detail, setDetail, data, updateRecord, userName }: {
               ))
             )}
           </div>
+        )}
+
+        {/* ─── Sensores Tab (Para lotes) ─── */}
+        {tab === 'sensores' && detail.module === 'lotes' && (
+          <LoteSensoresTab
+            loteId={recordId}
+            loteNombre={String(detail.record['nombre'] ?? recordId)}
+            cultivo={String(detail.record['cultivo_actual'] ?? '')}
+          />
         )}
       </DialogContent>
     </Dialog>
@@ -990,29 +1033,27 @@ function Input({ label, name, placeholder = '', type = 'text', required = false,
   );
 }
 
-function IA({ plan }: { plan: Session['plan'] }) {
+function IA({ plan, data, session, onActivateDemoPremium }: {
+  plan: Session['plan'];
+  data: SysagroData;
+  session: Session;
+  onActivateDemoPremium: () => void;
+}) {
   if (plan !== 'premium') return (
-    <div className="panel mx-auto max-w-lg p-8 text-center">
+    <div className="panel mx-auto max-w-lg p-8 text-center animate-rise">
       <span className="mx-auto grid size-12 place-items-center rounded-full bg-secondary text-primary"><Lock /></span>
       <h3 className="mt-4 text-xl font-bold">Disponible en el Plan Premium</h3>
-      <p className="mt-2 text-sm text-muted-foreground">El Plan Básico no incluye Inteligencia Artificial. Pasate a Premium para obtener predicciones de rinde, alertas tempranas y recomendaciones automáticas.</p>
-      <Button asChild className="mt-6"><Link to="/contacto" search={{ plan: 'premium' }}>Adquirir Plan Premium</Link></Button>
+      <p className="mt-2 text-sm text-muted-foreground">
+        El Plan Básico no incluye Inteligencia Artificial. Pasate a Premium por <strong>$40 / mes</strong> para obtener el Asistente IA conversacional, predicciones de rinde, telemetría de sensores subterráneos y recomendaciones automáticas.
+      </p>
+      <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+        <Button asChild><Link to="/contacto" search={{ plan: 'premium' }}>Adquirir Plan Premium ($40/mes)</Link></Button>
+        <Button variant="outline" onClick={onActivateDemoPremium} className="gap-1.5">
+          <Sparkles size={15} className="text-accent" /> Probar Asistente IA en esta demo
+        </Button>
+      </div>
     </div>
   );
-  const recs = [
-    ['Predicción de rinde', 'San Isidro 12 (Maíz) proyecta 8,4 tn/ha, +3,7% sobre lo estimado, si se completa la fertilización esta semana.'],
-    ['Alerta de riego', 'San Isidro 12 tiene 18% de humedad. Se recomienda regar 25 mm en las próximas 24 horas.'],
-    ['Alerta de plagas', 'Condiciones de calor y humedad favorecen chinches en La Esperanza 04. Monitorear en 3 días.'],
-    ['Stock', 'La urea granulada está por debajo del mínimo. Sugerimos comprar 1.000 kg antes del 25/09.'],
-  ];
-  return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {recs.map(([t, d]) => (
-        <div key={t} className="panel p-5">
-          <div className="flex items-center gap-2 text-primary"><Sparkles size={18} /><h3 className="font-bold">{t}</h3></div>
-          <p className="mt-3 text-sm text-muted-foreground">{d}</p>
-        </div>
-      ))}
-    </div>
-  );
+
+  return <IAChatbot data={data} session={session} />;
 }
