@@ -50,6 +50,7 @@ function Demo() {
   const [side, setSide] = useState(false);
   const [modal, setModal] = useState(false);
   const [query, setQuery] = useState('');
+  const [clima, setClima] = useState<{ temp: number; lluvia: number } | null>(null);
 
   const handleActivateDemoPremium = useCallback(() => {
     if (session) {
@@ -57,6 +58,19 @@ function Demo() {
       toast.success('Plan Premium activado temporalmente para esta sesión demo');
     }
   }, [session]);
+  useEffect(() => {
+  fetch('https://api.open-meteo.com/v1/forecast?latitude=-26.8241&longitude=-65.2226&current=temperature_2m&hourly=precipitation_probability&forecast_days=2&timezone=America%2FArgentina%2FTucuman')
+    .then(r => r.json())
+    .then(d => {
+      const horas: string[] = d.hourly.time;
+      const probs: number[] = d.hourly.precipitation_probability;
+      const desde = d.current.time.slice(0, 13) + ':00';
+      const i = Math.max(0, horas.findIndex(h => h >= desde));
+      const prox = probs.slice(i, i + 12).filter(p => p != null);
+      setClima({ temp: d.current.temperature_2m, lluvia: probs[i] ?? 0 });
+    })
+    .catch(() => {});
+}, []);
   useEffect(() => { setData(readData()); setReady(true); }, []);
   useEffect(() => { if (ready) writeData(data); }, [data, ready]);
 
@@ -135,7 +149,7 @@ function Demo() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <div className="hidden items-center gap-2 rounded-full bg-secondary px-3 py-2 text-xs font-semibold sm:flex"><CloudSun size={16} className="text-primary" /> 24°C · Humedad 61%</div>
+              <div className="hidden items-center gap-2 rounded-full bg-secondary px-3 py-2 text-xs font-semibold sm:flex"><CloudSun size={16} className="text-primary" /> {clima ? `${Math.round(clima.temp)}°C · Prob. lluvia ${clima.lluvia}%` : 'Cargando clima...'}</div>
               <Button variant="ghost" size="icon" className="relative"><Bell /><span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-destructive" /></Button>
               <span className={`hidden rounded-full px-3 py-1 text-[10px] font-extrabold uppercase sm:inline ${session.plan === 'premium' ? 'bg-accent text-accent-foreground' : 'bg-secondary text-primary'}`}>Plan {session.plan === 'premium' ? 'Premium · IA' : 'Básico'}</span>
               <span title={session.nombre} className="grid size-9 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{session.nombre.split(' ').map(w => w[0]).join('').slice(0, 2)}</span>
@@ -152,7 +166,7 @@ function Demo() {
               {!['dashboard', 'costos', 'ia', 'lotes'].includes(mod) && <Button onClick={() => setModal(true)}><Plus /> {newRecordLabel[mod] ?? 'Nuevo registro'}</Button>}
             </div>
 
-            {mod === 'dashboard' && <Dashboard data={data} />}
+            {mod === 'dashboard' && <Dashboard data={data} clima={clima} />}
             {mod === 'lotes' && <LotesModule data={data} setData={setData} session={session} />}
             {mod === 'labores' && <Labores data={data} query={query} setQuery={setQuery} remove={id => remove('labores', id)} />}
             {mod === 'ordenes' && <Ordenes data={data} remove={id => remove('ordenes', id)} />}
@@ -419,9 +433,24 @@ function LotesModule({ data, setData, session }: { data: SysagroData; setData: R
 }
 
 /* ═══════ MODULE COMPONENTS ═══════ */
-function Dashboard({ data }: { data: SysagroData }) {
+function Dashboard({ data, clima }: { data: SysagroData; clima: { temp: number; lluvia: number } | null }) {
+    const [simular, setSimular] = useState(false);
+  const lluvia = simular ? 70 : clima ? clima.lluvia : null;
+  const ordenRiesgo = data.ordenes.find(o => o.estado === 'Pendiente');
+  const riesgoLluvia = lluvia !== null && lluvia > 50 && ordenRiesgo;
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <button onClick={() => setSimular(s => !s)} className="rounded-full border px-3 py-1.5 text-xs font-semibold hover:bg-secondary">
+          {simular ? 'Volver al clima real' : 'Simular pronóstico de lluvia'}
+        </button>
+      </div>
+      {riesgoLluvia && (
+        <div className="flex items-center gap-3 rounded-md border border-warning/40 bg-warning/10 p-4 text-sm font-semibold">
+          <AlertTriangle className="text-warning shrink-0" size={18} />
+          Orden pendiente en {ordenRiesgo?.lote} ({ordenRiesgo?.insumo}) con {lluvia}% de probabilidad de lluvia{simular ? ' (simulado para la demo)' : ''} — se recomienda posponer la aplicación.
+        </div>
+      )}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric icon={Wheat} label="Has sembradas" value="1.240 ha" trend="+8,4% vs. campaña anterior" />
         <Metric icon={BarChart3} label="Rinde estimado" value="6,8 tn/ha" trend="Proyección favorable" />
