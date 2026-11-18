@@ -55,11 +55,11 @@ La web debe contar con un Navbar superior interactivo que permita navegar fluida
    - Representación visual e interactiva del organigrama corporativo (Dirección General, Operaciones/Agronomía, Desarrollo de Software & QA, Comercial & Soporte).
 
 5. Planes y Precios (Pricing Cards):
-   - Plan Básico ($90 / mes):
+   - Plan Básico ($20 / mes):
      - Prueba gratis de 14 días sin tarjeta.
      - Incluye: Cuaderno de campo digital, Control de cosechas, Gestión de bodega/stock básica, Registro de maquinarias, Reportes básicos de rinde.
      - Botón "Iniciar Prueba Gratuita de 14 días".
-   - Plan Premium ($170 / mes - Destacado/Recomendado):
+   - Plan Premium ($40 / mes - Destacado/Recomendado):
      - Incluye TODO lo del Plan Básico más el suite completo de funcionalidades avanzadas:
        - Costos y presupuestos
        - Control de faenas
